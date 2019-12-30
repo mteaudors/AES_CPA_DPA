@@ -13,12 +13,14 @@ int read_data(char *path, void *buffer, int size_element, int nb_element) {
 
 int main(int argc, char *argv[]) {
 
+    // define the number of threads to use 
+    int nb_thread = (argc==2) ? atoi(argv[1]) : NB_THREAD;
+    omp_set_num_threads(nb_thread);
+
+
     // To measure the time
     clock_t start, end;
     double cpu_time_used;
-
-    // define the number of threads to use 
-    omp_set_num_threads(NB_THREAD);
 
     // byte of the key to attack
     u_int8_t bnum;
@@ -105,6 +107,8 @@ int main(int argc, char *argv[]) {
         }
         free(P);
     }
+
+
     
     // end timer
     end = clock();
@@ -131,7 +135,10 @@ int main(int argc, char *argv[]) {
 
     cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
     printf("Total Computation time : %0.2f s\n",cpu_time_used);
-    printf("Average time per thread : %0.2f s\n",cpu_time_used/NB_THREAD);
+
+    printf("\n");
+    printf("Number of thread : %d\n",nb_thread);
+    printf("Average time per thread : %0.2f s\n",cpu_time_used/nb_thread);
     free(traces);
     
     return 0;
