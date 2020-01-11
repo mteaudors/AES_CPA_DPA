@@ -15,14 +15,19 @@ void init(double *group, int length){
         group[i] = 0;
 }
 
-void add(double *group, double *traces, int start, int length){
-    for(int i = start; i < start+length; ++i)
-        group[i - start] += traces[i];
+void add(double *res, double *group, double *traces, int length){
+    for(int i = 0; i < length; ++i)
+        res[i] = group[i] + traces[i];
 }
 
-void divide(double *group, double denumerator, int length){
+void subtract(double *res, double *group, double *traces, int start, int length){
+    for(int i = start; i < start+length; ++i)
+        res[i - start] = traces[i] - group[i - start];
+}
+
+void divide(double *res, double *group, double denumerator, int length){
     for(int i = 0; i < length; ++i)
-        group[i] = group[i] / denumerator;
+        res[i] = group[i] / denumerator;
 }
 
 void abs_sub(double *res, double *grp1, double *grp2, int length){
@@ -117,18 +122,26 @@ int main(int argc, char *argv[]) {
                 int hw_of_byte = intermediate(PT[i*16 + bnum], k);
                 int first_byte = hw_of_byte & 0b0000001;
 
-                if(first_byte == 1){
-                    add(grp1, traces, i*NB_SAMPLES, NB_SAMPLES);
+                if(first_byte == 1)
                     nb_traces_g1++;
-                }else{
-                    add(grp2, traces, i*NB_SAMPLES, NB_SAMPLES);
+                else
                     nb_traces_g2++;
-                }
             }
 
-            divide(grp1, (double)nb_traces_g1, NB_SAMPLES);
-            divide(grp2, (double)nb_traces_g2, NB_SAMPLES);
-            
+            for(int i = 0; i < NB_TRACES; ++i){
+                int hw_of_byte = intermediate(PT[i*16 + bnum], k);
+                int first_byte = hw_of_byte & 0b0000001;
+
+                if(first_byte == 1){
+                    subtract(tmp, grp1, traces, i*NB_SAMPLES, NB_SAMPLES);
+                    divide(tmp, tmp, (double)nb_traces_g1, NB_SAMPLES);
+                    add(grp1, grp1, tmp, NB_SAMPLES);
+                }else{
+                    subtract(tmp, grp2, traces, i*NB_SAMPLES, NB_SAMPLES);
+                    divide(tmp, tmp, (double)nb_traces_g2, NB_SAMPLES);
+                    add(grp2, grp2, tmp, NB_SAMPLES);
+                }
+            }
             abs_sub(tmp, grp1, grp2, NB_SAMPLES);
             group[k] = max(tmp, NB_SAMPLES);
         }
