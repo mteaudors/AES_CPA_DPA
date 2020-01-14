@@ -11,7 +11,7 @@
 
 
 
-#define NB_TRACES 25000 // = number of plaintexts
+#define NB_TRACES 5000 // = number of plaintexts
 #define NB_SAMPLES 3000
 #define N (NB_TRACES*NB_SAMPLES)
 #define NB_THREAD 2
