@@ -30,6 +30,7 @@ void divide(double *res, double *group, double denumerator, int length){
         res[i] = group[i] / denumerator;
 }
 
+// Calculate the absolute value of the difference of two double buffers
 void abs_sub(double *res, double *grp1, double *grp2, int length){
     for(int i = 0; i < length; ++i)
         res[i] = fabs(grp1[i] - grp2[i]);
@@ -51,8 +52,6 @@ void print_arr(double *arr, int length){
 }
 
 int arg_max(double *group, int length){
-    //printf("on entre dans arg_max avec :\n");
-    //print_arr(group, length);
     double max = 0;
     int argmax = 0;
     for(int i = 0; i < length; ++i){
@@ -61,7 +60,6 @@ int arg_max(double *group, int length){
             argmax = i;
         }
     }
-    printf("arg_max = %d\n", argmax);
     return argmax;
 }
 
@@ -100,15 +98,17 @@ int main(int argc, char *argv[]) {
     start = clock();
 
     // loop over the 16 bytes of the key
-    
     #pragma omp parallel for
     for(bnum = 0; bnum < 16; ++bnum) {
+        //init a buffer of length 256, max value of a byte, and initialize it
         double group[256];
         init(group, 256);
 
+        // Temporary buffer that will contain a trace
         double tmp[NB_SAMPLES];
 
         for(int k = 0; k < 256; ++k){
+            // Two separate groups to discriminate the traces
             double grp1[NB_SAMPLES];
             double grp2[NB_SAMPLES];
             
@@ -118,8 +118,19 @@ int main(int argc, char *argv[]) {
             int nb_traces_g1 = 0;
             int nb_traces_g2 = 0;
 
+            /*
+             * The next part calculate the means iterativaly. However,
+             * it requires a first loop to calculate the length of the
+             * two sub-groups, as we don't know know it firsthand.
+             * The second loop then calculates the means iteratively of
+             * the two sub-groups.
+             *
+             * Using this method reduces the cancellation phenomena, but
+             * increases the time taken overall by a slight amount.
+             */
             for(int i = 0; i < NB_TRACES; ++i){
                 int hw_of_byte = intermediate(PT[i*16 + bnum], k);
+                // Discriminate over the last second bit
                 int first_byte = hw_of_byte & 0b0000001;
 
                 if(first_byte == 1)
@@ -132,6 +143,7 @@ int main(int argc, char *argv[]) {
                 int hw_of_byte = intermediate(PT[i*16 + bnum], k);
                 int first_byte = hw_of_byte & 0b0000001;
 
+                // Calculate each mean iteratively
                 if(first_byte == 1){
                     subtract(tmp, grp1, traces, i*NB_SAMPLES, NB_SAMPLES);
                     divide(tmp, tmp, (double)nb_traces_g1, NB_SAMPLES);
@@ -142,9 +154,12 @@ int main(int argc, char *argv[]) {
                     add(grp2, grp2, tmp, NB_SAMPLES);
                 }
             }
+            // Calculate the absolute value of the difference of means
             abs_sub(tmp, grp1, grp2, NB_SAMPLES);
+            // Select the maximum for each potential sub-key
             group[k] = max(tmp, NB_SAMPLES);
         }
+        // Select the maximum argument, our guess for a specific key byte
         int result = arg_max(group, 256);
         guess[bnum] = result;
     }
