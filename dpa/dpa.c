@@ -130,7 +130,7 @@ int main(int argc, char *argv[]) {
              */
             for(int i = 0; i < NB_TRACES; ++i){
                 int hw_of_byte = intermediate(PT[i*16 + bnum], k);
-                // Discriminate over the last second bit
+                // Discriminate over the second to last bit
                 int first_byte = hw_of_byte & 0b0000001;
 
                 if(first_byte == 1)
