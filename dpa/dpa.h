@@ -8,7 +8,8 @@
 #include <math.h>
 #include <omp.h>
 #include <time.h>
-
+#include <string.h>
+#include <errno.h>
 
 
 #define NB_TRACES 5000 // = number of plaintexts
