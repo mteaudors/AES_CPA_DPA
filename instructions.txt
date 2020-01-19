@@ -1,0 +1,10 @@
+In order to generate the raw files required for the programs, please use "cpa/TME_4_Correlation_Power_Analysis_Attack.ipynb". The sixth and seventh blocks of code respetively capture data and save it on files you can download from the "traces" folder. 
+You can define the number of traces and the number of samples in the sixth block. The default values are : 
+DPA : 
+	N = 5000
+	samples = 3000
+CPA : 
+	N = 1000
+	samples = 3000
+
+To test with different values of these parameters, please update their values in "dpa/dpa.h" and "cpa/cpa.h".
