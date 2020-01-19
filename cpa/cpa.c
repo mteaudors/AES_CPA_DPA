@@ -6,7 +6,17 @@ u_int8_t intermediate(u_int8_t plain , u_int8_t key) {
 
 int read_data(char *path, void *buffer, int size_element, int nb_element) {
     FILE *f = fopen(path, "r");
-    fread(buffer , size_element, nb_element , f);
+    
+    if(f == NULL) {
+        fprintf(stderr , "Error opening file %s : %s\n",path,strerror(errno));   
+        exit(EXIT_FAILURE);     
+    }
+
+    if(fread(buffer , size_element, nb_element , f) == 0) {
+        fprintf(stderr , "Error reading file %s : %s\n",path,strerror(errno));   
+        exit(EXIT_FAILURE);     
+    }
+    
     fclose(f);
 }
 
