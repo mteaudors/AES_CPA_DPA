@@ -1,5 +1,7 @@
 
 import numpy as np
+import time
+from threading import Thread
 
 sbox =   [
   0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
@@ -24,20 +26,52 @@ sbox =   [
 def intermediate(plain,key):
     return sbox[plain^key]
 
+########################################################################################################################################
+
 HW = [0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8]
 
+PT = []
+traces = []
+guess = np.zeros((16))
+N = 1000
+M = 3000
+
+########################################################################################################################################
+
+class attack(Thread):
+
+    def __init__(self, bnum):
+        Thread.__init__(self)
+        self.bnum = bnum
+        self.working = True
+
+    def run(self):
+        P = np.zeros((N,256))
+
+        for j in range(4):
+            bnum = self.bnum + j
+
+            for i in range(N):
+                for k in range(256):
+                    P[i][k] = HW[intermediate(PT[i*16 + bnum],k)]
+
+
+            max = 0 
+            for i in range(M):
+                for k in range(256):
+                    r = np.fabs(np.corrcoef(P[:,k], [traces[n*M+i] for n in range(N)])[0][1])
+                    if r>max:
+                        max = r
+                        guess[bnum] = k   
+            
+        self.working = False
+
+########################################################################################################################################
 
 if __name__ == "__main__":
 
-    N = 1000
-    M = 3000
-    
-    traces = []
     key = []
-    PT = []
-    guess = np.zeros((16))
-    bnum = 1
-
+    
     with open("key.raw","r") as f:
         key = np.fromfile(f,dtype=np.uint8)
     with open("plain.raw","r") as f:
@@ -45,22 +79,30 @@ if __name__ == "__main__":
     with open("traces.raw","r") as f:
         traces = np.fromfile(f,dtype=np.float64)
 
-    P = np.zeros((N,256))
-    for i in range(N):
-        for k in range(256):
-            P[i][k] = HW[intermediate(PT[i*16 + bnum - 1],k)]
+    threads = []
     
-    max = 0 
-    for i in range(M):
-        for k in range(256):
-            r = np.fabs(np.corrcoef(P[:,k], [traces[n*M+i] for n in range(N)])[0][1])
-            if r>max:
-                max = r
-                guess[bnum-1] = k
+    start = time.time()
+
+    for i in range(4): 
+        threads.append(attack(4*i))
+        threads[i].start()
+
+    # wait the end of the threads
     
-    print(hex(int(guess[0])))
+    for i in range(4):
+        while threads[i].working == True:
+            time.sleep(0.1)
 
+    
+    print("Correct key : ",[hex(int(key[i])) for i in range(16)])
+    print("Guess : ",[hex(int(guess[i])) for i in range(16)])
+    
+    success = 0
+    for i in range(16):
+        success = success + (key[i] == guess[i])
 
+    print("Success : ",(success/16)*100," %")
+    print("Execution time : ", (time.time() - start), " s")
 
 
 
