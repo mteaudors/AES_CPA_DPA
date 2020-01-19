@@ -30,14 +30,21 @@ def intermediate(plain,key):
 
 HW = [0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8]
 
-PT = []
-traces = []
-guess = np.zeros((16))
-N = 1000
-M = 3000
+PT = [] # plaintext
+traces = [] # raw data of power consuption
+N = 1000 # number of traces
+M = 3000 # number of sample per trace
+guess = np.zeros((16)) # key guess initialized with 0
 
 ########################################################################################################################################
 
+"""
+Define a class to attack 4 bytes of the key. Need 4 threads to recover the entire key
+Thread 0 : bytes 0,1,2,3
+Thread 1 : bytes 4,5,6,7
+Thread 2 : bytes 8,9,10,11
+Thread 3 : bytes 12,13,14,15
+"""
 class attack(Thread):
 
     def __init__(self, bnum):
@@ -48,14 +55,17 @@ class attack(Thread):
     def run(self):
         P = np.zeros((N,256))
 
+        # loop over the 4 bytes of the key associated to the thread
         for j in range(4):
-            bnum = self.bnum + j
 
+            bnum = self.bnum + j
+            
+            # generate the model based on Hamming weight computation
             for i in range(N):
                 for k in range(256):
                     P[i][k] = HW[intermediate(PT[i*16 + bnum],k)]
 
-
+            # Compute correlation between the model and the power consumption and determine the most probable value for the byte the key 
             max = 0 
             for i in range(M):
                 for k in range(256):
@@ -63,7 +73,8 @@ class attack(Thread):
                     if r>max:
                         max = r
                         guess[bnum] = k   
-            
+        
+        # End of work
         self.working = False
 
 ########################################################################################################################################
@@ -71,7 +82,9 @@ class attack(Thread):
 if __name__ == "__main__":
 
     key = []
+    threads = []
     
+    # Read data from files
     with open("key.raw","r") as f:
         key = np.fromfile(f,dtype=np.uint8)
     with open("plain.raw","r") as f:
@@ -79,16 +92,15 @@ if __name__ == "__main__":
     with open("traces.raw","r") as f:
         traces = np.fromfile(f,dtype=np.float64)
 
-    threads = []
-    
+    # Start measuring time
     start = time.time()
 
+    # Start the 4 threads to attack the AES key in parallel
     for i in range(4): 
         threads.append(attack(4*i))
         threads[i].start()
 
     # wait the end of the threads
-    
     for i in range(4):
         while threads[i].working == True:
             time.sleep(0.1)
@@ -97,6 +109,7 @@ if __name__ == "__main__":
     print("Correct key : ",[hex(int(key[i])) for i in range(16)])
     print("Guess : ",[hex(int(guess[i])) for i in range(16)])
     
+    # Compute success rate
     success = 0
     for i in range(16):
         success = success + (key[i] == guess[i])
