@@ -49,7 +49,7 @@ if __name__ == "__main__":
 
     for bnum in range(0, 16):
 
-        
+
         # Init a buffer of length 256, max value of a byte, and initialize it
         group = np.zeros(256)
         
